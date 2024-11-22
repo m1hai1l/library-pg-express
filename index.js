@@ -20,4 +20,3 @@ async function* generateSequence(start, end) {
 })();
 
 
-console.log(import.meta)
