@@ -17,7 +17,7 @@ app.get('/user/:id', function(request, response){
     let flag = 0
     for (let i = 0; i < bd.length; i++){
         if (bd[i]["id"] == id){
-            response.json({date: bd[id-1]});
+            response.json(bd[id-1]);
             flag++
         }
     }
@@ -31,24 +31,29 @@ app.post('/user', function(request, response){
     if(!request.body) return response.sendStatus(400);
     const user = request.body
     
-    user.id = uuidv4()
+    user.id = uuidv4();
 
+    bd.push(user)
     response.json(user)
 })
+
+
+
 
 app.put('/user/:id', function(request, response){
     if(!request.body) return response.sendStatus(400);
 
 
-    const id = request.params['id'];
-    let flag = 0
+    const id = Number(request.params['id']);
+    let ind
+
     for (let i = 0; i < bd.length; i++){
         if (bd[i]["id"] == id){
-            flag++
+            ind = i
         }
     }
-    if(!flag){
-        return response.json({data: "Ничего нет..."}).sendStatus(404)
+    if(ind == undefined){
+        return response.json({ error: "User not found" }).sendStatus(404)
     }
 
 
@@ -56,9 +61,31 @@ app.put('/user/:id', function(request, response){
     const email = request.body.email;
     const age = request.body.age;
 
+    bd[ind] = {"id": id, "name": name, "email": email, "age": age}
+
     response.json({"id": id, "name": name, "email": email, "age": age})
 })
 
+
+
+
+
+app.delete('/user/:id', function(request, response){
+    const id = Number(request.params['id']);
+
+    let flag = 0
+
+    for (let i = 0; i < bd.length; i++){
+        if (bd[i]["id"] == id){
+            flag++;
+            bd.splice(i, 1);
+            response.json({content: "Успешно"})
+        }
+    }
+    if(!flag){
+        return response.json({ error: "User not found" }).sendStatus(404)
+    }
+})
 
 
 
