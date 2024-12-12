@@ -71,7 +71,7 @@ app.put('/user/:id', function(request, response){
 
 
 app.delete('/user/:id', function(request, response){
-    const id = Number(request.params['id']);
+    const id = request.params['id'];
 
     let flag = 0
 
@@ -89,4 +89,4 @@ app.delete('/user/:id', function(request, response){
 
 
 
-app.listen(4000, () => { console.log('Сервер запущен') })
+app.listen(4000, () => { console.log('Сервер запущен') });
