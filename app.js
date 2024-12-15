@@ -1,116 +1,92 @@
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
+const { Pool } = require('pg');
+
+const pool = new Pool({
+    user: 'postgres', 
+    host: 'localhost', 
+    database: 'myexpress-bd', 
+    password: 'lira', 
+    port: 5433
+});
 
 const app = express()
 app.use(express.json())
 
-bd = [{
-    "id": 1,
-    "title": "Harry Potter",
-    "author": "J.K. Rowling",
-    "genre": "Fantasy",
-    "year": 1997
-  }]
-
-function small(name_par, id){
-    for(let i = 0; i < bd.length; i++){
-        if(bd[i][`${name_par}`] == id){
-            return bd[i]
-        }
-    }
-}
-
-function searchs(name, author, id){
-    if (id != null){
-        return small("id", id)
-    }
-    else if (name != null){
-        return small("name", name)
-    }
-    else if(author != null){
-        return small("author", author)
-    }
-    return false
-}
-
-app.get('/books', function(request, response){
+app.get('/books', async function(request, response){
     const parm = request.query;
+    const sql_author = "SELECT * FROM library WHERE author=$1";
+    const sql_title = "SELECT * FROM library WHERE title=$1";
+    const sql_all = "SELECT * FROM library";
 
     if(parm.author != undefined || parm.title != undefined){
         if (parm.title != undefined){
-            response.json(searchs(parm.title, null, null))
+            const result = await pool.query(sql_title, [parm.title]);
+            response.json(result.rows)
         }
         else if(parm.author != undefined){
-            response.json(searchs(null, parm.author, null))
+            const result = await pool.query(sql_author, [parm.author]);
+            response.json(result.rows)
         }
-        response.send(parm)
     }
 
     else{
-        response.json(bd)
+        const result = await pool.query(sql_all);
+        response.json(result.rows)
     }
 })
 
 
-app.get('/books/:id', function(request, response){
-    const id = request.params['id']
-    response.json(searchs(null, null, id))
+app.get('/books/:id', async function(request, response){
+    const sql_id = "SELECT * FROM library WHERE id=$1"
+    const id = [request.params['id']]
+
+    const result = await pool.query(sql_id, id);
+    response.json(result.rows)
 })
 
 
-app.post('/books', function(request, response){
+app.post('/books', async function(request, response){
     if (!request.body){return response.sendStatus(400)}
 
-    const id = uuidv4();
-    const title = request.body.title;
-    const author = request.body.author;
-    const genre = request.body.genre;
-    const year = request.body.year;
+    const sql_post = `INSERT INTO library(title, author, genre, year) VALUES ($1, $2, $3, $4) RETURNING *`;
+    const data = [request.body.title, request.body.author, request.body.genre, request.body.year]
 
-    bd.push({'id': id, 'title': title, 'author': author, 'genre': genre, 'year': year})
-
-    response.json({'id': id, 'title': title, 'author': author, 'genre': genre, 'year': year})
+    const result = await pool.query(sql_post, data)
+    response.json(result.rows)
 })
 
 
-app.put('/books/:id', function(request, response){
+app.put('/books/:id', async function(request, response){
     if (!request.body){return response.sendStatus(400)}
 
     const id = request.params['id'];
-    const book = searchs(null, null, id);
+    const sql = `UPDATE library SET title=$1, author=$2, genre=$3, year=$4 WHERE id=$5`;
+    const data = [request.body.title, request.body.author, request.body.genre, request.body.year, id]
 
-    book.title = request.body.title;
-    book.author = request.body.author;
-    book.genre = request.body.genre;
-    book.year = request.body.year;
+    const result = await pool.query(sql, data);
 
-    for(let i = 0; i < bd.length; i++){
-        if(bd[i][`${id}`] == book.id){
-            bd[i] = book
-        }
+
+    if(result.rowCount){
+        response.json({'data': 'Успешно'})
     }
-
-    response.json(book)
-})
-
-
-app.delete('/books/:id', function(request, response){
-    const id = request.params['id'];
-
-    let flag = 0
-
-    for (let i = 0; i < bd.length; i++){
-        if (bd[i]["id"] == id){
-            flag++;
-            bd.splice(i, 1);
-            response.json({content: "Успешно"})
-        }
-    }
-    if(!flag){
-        return response.json({ error: "User not found" }).sendStatus(404)
+    else{
+        response.json({'data': "Ошибка"})
     }
 })
 
 
+app.delete('/books/:id', async function(request, response){
+    const sql_delete = "DELETE FROM library WHERE id=$1";
+    const id = [request.params['id']];
+
+    const result = await pool.query(sql_delete, id)
+
+    if(result.rowCount){
+        response.json({'data': 'Успешно'})
+    }
+    else{
+        response.json({'data': 'Ошибка'})
+    }
+})
 
 app.listen(4000, () => { console.log('Сервер работает') })
