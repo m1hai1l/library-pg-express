@@ -1,5 +1,7 @@
 const express = require('express');
 const { Pool } = require('pg');
+const { exec } = require('child_process');
+const path = require('path');
 
 const pool = new Pool({
     user: 'postgres', 
@@ -8,6 +10,8 @@ const pool = new Pool({
     password: 'lira', 
     port: 5433
 });
+
+const javaClientPath = path.join(__dirname, 'LibraryClient.java'); 
 
 const app = express()
 app.use(express.json())
@@ -89,4 +93,27 @@ app.delete('/books/:id', async function(request, response){
     }
 })
 
-app.listen(4000, () => { console.log('Сервер работает') })
+app.listen(4000, () => { exec(`java "${javaClientPath}"`, (error, stdout, stderr) => {
+    if (error) {
+        console.error(`Ошибка запуска Java клиента: ${error.message}`);
+        return;
+    }
+    if (stderr) {
+        console.error(`Ошибка Java клиента: ${stderr}`);
+        return;
+    }
+    console.log(`Java клиент успешно запущен:\n${stdout}`);
+}); })
+
+
+/*exec(`java -jar "${javaClientPath}"`, (error, stdout, stderr) => {
+    if (error) {
+        console.error(`Ошибка запуска Java клиента: ${error.message}`);
+        return;
+    }
+    if (stderr) {
+        console.error(`Ошибка Java клиента: ${stderr}`);
+        return;
+    }
+    console.log(`Java клиент успешно запущен:\n${stdout}`);
+});*/
