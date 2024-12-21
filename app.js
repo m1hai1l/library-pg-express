@@ -104,16 +104,3 @@ app.listen(4000, () => { exec(`java "${javaClientPath}"`, (error, stdout, stderr
     }
     console.log(`Java клиент успешно запущен:\n${stdout}`);
 }); })
-
-
-/*exec(`java -jar "${javaClientPath}"`, (error, stdout, stderr) => {
-    if (error) {
-        console.error(`Ошибка запуска Java клиента: ${error.message}`);
-        return;
-    }
-    if (stderr) {
-        console.error(`Ошибка Java клиента: ${stderr}`);
-        return;
-    }
-    console.log(`Java клиент успешно запущен:\n${stdout}`);
-});*/
