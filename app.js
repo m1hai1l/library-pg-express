@@ -11,6 +11,45 @@ const pool = new Pool({
     port: 5433
 });
 
+const password = 'lira';
+const host = 'localhost';
+const user = 'postgres';
+const port = 5433;
+
+const databaseName = 'myexpress-bd'; 
+const dumpFilePath = path.join(__dirname, 'sql.dump');
+
+
+async function checkAndRestoreDatabase() {
+
+  const checkCommand = `psql -h ${host} -p ${port} -U ${user} -d ${databaseName} -c "SELECT 1 FROM library WHERE datname = '${databaseName}'"`;
+
+  exec(checkCommand, { env: { PGPASSWORD: password } }, (_, stdout) => {
+    if (stdout.includes('1')) {
+      console.log(`База данных "${databaseName}" уже существует.`);
+    } else {
+      console.log(`База данных "${databaseName}" не существует. Создаю и восстанавливаю из дампа...`);
+      createAndRestoreDatabase();
+    }
+  });
+}
+
+
+function createAndRestoreDatabase() {
+
+  const createCommand = `psql -h ${host} -p ${port} -U ${user} -d ${databaseName} -f ${dumpFilePath}`;
+
+  exec(createCommand, { env: { PGPASSWORD: password } }, (error) => {
+    if (error) {
+      console.error('Ошибка при создании базы данных:', error.message);
+      return;
+    }
+    console.log(`База данных "${databaseName}" успешно создана.`);
+  });
+}
+
+checkAndRestoreDatabase();
+
 const javaClientPath = path.join(__dirname, 'LibraryClient.java'); 
 
 const app = express()
@@ -103,4 +142,5 @@ app.listen(4000, () => { exec(`java "${javaClientPath}"`, (error, stdout, stderr
         return;
     }
     console.log(`Java клиент успешно запущен:\n${stdout}`);
-}); })
+    }); 
+})
