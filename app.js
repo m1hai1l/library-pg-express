@@ -22,7 +22,7 @@ const dumpFilePath = path.join(__dirname, 'sql.dump');
 
 async function checkAndRestoreDatabase() {
 
-  const checkCommand = `psql -h ${host} -p ${port} -U ${user} -d ${databaseName} -c "SELECT 1 FROM library WHERE datname = '${databaseName}'"`;
+  const checkCommand = `psql -h ${host} -p ${port} -U ${user} -d ${databaseName} -c "SELECT 1 FROM library"`;
 
   exec(checkCommand, { env: { PGPASSWORD: password } }, (_, stdout) => {
     if (stdout.includes('1')) {
@@ -54,6 +54,17 @@ const javaClientPath = path.join(__dirname, 'LibraryClient.java');
 
 const app = express()
 app.use(express.json())
+
+const passwordSuperUser = 1234;
+let FLAG = false;
+
+app.use(function(request, response, next){
+    const pas = request.query.password;
+    if (pas == passwordSuperUser){
+        FLAG = true;
+    }
+    next()
+})
 
 app.get('/books', async function(request, response){
     const parm = request.query;
@@ -89,6 +100,7 @@ app.get('/books/:id', async function(request, response){
 
 
 app.post('/books', async function(request, response){
+    if (!FLAG){ return response.sendStatus(403) }
     if (!request.body){return response.sendStatus(400)}
 
     const sql_post = `INSERT INTO library(title, author, genre, year) VALUES ($1, $2, $3, $4) RETURNING *`;
@@ -100,6 +112,7 @@ app.post('/books', async function(request, response){
 
 
 app.put('/books/:id', async function(request, response){
+    if (!FLAG){ return response.sendStatus(403) }
     if (!request.body){return response.sendStatus(400)}
 
     const id = request.params['id'];
@@ -119,6 +132,7 @@ app.put('/books/:id', async function(request, response){
 
 
 app.delete('/books/:id', async function(request, response){
+    if (!FLAG){ return response.sendStatus(403) }
     const sql_delete = "DELETE FROM library WHERE id=$1";
     const id = [request.params['id']];
 

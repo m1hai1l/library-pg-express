@@ -1,4 +1,4 @@
-import java.awt.*; 
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
@@ -6,14 +6,20 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import javax.swing.*;
 
+
+
 public class LibraryClient extends JFrame {
     private JTextField titleField;
     private JTextField authorField;
     private JTextField genreField;
     private JTextField yearField;
     private JTextArea resultArea;
+    private String password;
 
     public LibraryClient() {
+        // Prompt for password at startup
+        password = JOptionPane.showInputDialog(this, "Enter password:", "Authentication", JOptionPane.PLAIN_MESSAGE);
+
         setTitle("Library Client");
         setSize(600, 500);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -57,6 +63,7 @@ public class LibraryClient extends JFrame {
         add(scrollPane, BorderLayout.SOUTH);
     }
 
+
     private class SearchButtonListener implements ActionListener {
         @Override
         public void actionPerformed(ActionEvent e) {
@@ -90,34 +97,69 @@ public class LibraryClient extends JFrame {
                 }
                 reader.close();
 
-                // Parse JSON manually
-                String rawData = response.toString();
-                rawData = rawData.substring(1, rawData.length() - 1); // Remove [ and ]
-                String[] books = rawData.split("},");
-                StringBuilder resultText = new StringBuilder();
-                for (String book : books) {
-                    book = book.replace("{", "").replace("}", "");
-                    String[] fields = book.split(",");
-                    for (String field : fields) {
-                        String[] keyValue = field.split(":");
-                        String key = keyValue[0].replace("\"", "").trim();
-                        String value = keyValue[1].replace("\"", "").trim();
-                        resultText.append(key).append(": ").append(value).append(" ");
-                    }
-                    resultText.append("\n");
-                }
-                resultArea.setText(resultText.toString());
+                // Parse JSON manually and format the response
+                String formattedResponse = formatResponse(response.toString());
+                resultArea.setText(formattedResponse);
             } catch (IOException ex) {
                 resultArea.setText("Error: " + ex.getMessage());
-            } catch (Exception ex) {
-                resultArea.setText("Invalid response from server: " + ex.getMessage());
             }
+        }
+
+        private String formatResponse(String jsonResponse) {
+            StringBuilder formatted = new StringBuilder();
+            try {
+                // Remove square brackets if it's a JSON array
+                jsonResponse = jsonResponse.trim();
+                if (jsonResponse.startsWith("[") && jsonResponse.endsWith("]")) {
+                    jsonResponse = jsonResponse.substring(1, jsonResponse.length() - 1);
+                }
+
+                // Split objects if they are separated by commas
+                String[] objects = jsonResponse.split("\\},\\{");
+                for (String obj : objects) {
+                    obj = obj.trim();
+
+                    // Remove braces
+                    if (obj.startsWith("{")) obj = obj.substring(1);
+                    if (obj.endsWith("}")) obj = obj.substring(0, obj.length() - 1);
+
+                    // Split key-value pairs
+                    String[] pairs = obj.split(",");
+                    for (String pair : pairs) {
+                        String[] keyValue = pair.split(":");
+                        if (keyValue.length == 2) {
+                            String key = keyValue[0].trim().replace("\"", "");
+                            String value = keyValue[1].trim().replace("\"", "");
+                            formatted.append(key).append(": ").append(value).append("\n");
+                        }
+                    }
+                    formatted.append("\n");
+                }
+            } catch (Exception ex) {
+                formatted.append("Invalid JSON response: ").append(jsonResponse);
+            }
+            return formatted.toString();
         }
     }
 
-    private class AddButtonListener implements ActionListener {
+    private abstract class AuthenticatedButtonListener implements ActionListener {
+        protected boolean isAuthenticated() {
+            return password != null && password.equals("1234");
+        }
+
+        protected void showAccessDeniedMessage() {
+            resultArea.setText("Access denied: Invalid password.");
+        }
+    }
+
+    private class AddButtonListener extends AuthenticatedButtonListener {
         @Override
         public void actionPerformed(ActionEvent e) {
+            if (!isAuthenticated()) {
+                showAccessDeniedMessage();
+                return;
+            }
+
             String title = titleField.getText();
             String author = authorField.getText();
             String genre = genreField.getText();
@@ -129,7 +171,7 @@ public class LibraryClient extends JFrame {
             }
 
             try {
-                URL url = new URL("http://localhost:4000/books");
+                URL url = new URL("http://localhost:4000/books?password=" + password);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("POST");
                 connection.setRequestProperty("Content-Type", "application/json");
@@ -154,9 +196,14 @@ public class LibraryClient extends JFrame {
         }
     }
 
-    private class UpdateButtonListener implements ActionListener {
+    private class UpdateButtonListener extends AuthenticatedButtonListener {
         @Override
         public void actionPerformed(ActionEvent e) {
+            if (!isAuthenticated()) {
+                showAccessDeniedMessage();
+                return;
+            }
+
             String id = JOptionPane.showInputDialog("Enter book ID to update:");
             if (id == null || id.isEmpty()) {
                 resultArea.setText("Error: ID is required.");
@@ -174,7 +221,7 @@ public class LibraryClient extends JFrame {
             }
 
             try {
-                URL url = new URL("http://localhost:4000/books/" + id);
+                URL url = new URL("http://localhost:4000/books/" + id + "?password=" + password);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("PUT");
                 connection.setRequestProperty("Content-Type", "application/json");
@@ -199,9 +246,14 @@ public class LibraryClient extends JFrame {
         }
     }
 
-    private class DeleteButtonListener implements ActionListener {
+    private class DeleteButtonListener extends AuthenticatedButtonListener {
         @Override
         public void actionPerformed(ActionEvent e) {
+            if (!isAuthenticated()) {
+                showAccessDeniedMessage();
+                return;
+            }
+
             String id = JOptionPane.showInputDialog("Enter book ID to delete:");
             if (id == null || id.isEmpty()) {
                 resultArea.setText("Error: ID is required.");
@@ -209,7 +261,7 @@ public class LibraryClient extends JFrame {
             }
 
             try {
-                URL url = new URL("http://localhost:4000/books/" + id);
+                URL url = new URL("http://localhost:4000/books/" + id + "?password=" + password);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("DELETE");
 
@@ -232,3 +284,5 @@ public class LibraryClient extends JFrame {
         });
     }
 }
+
+
